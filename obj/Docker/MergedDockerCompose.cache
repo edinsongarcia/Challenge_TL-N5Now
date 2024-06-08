@@ -1,0 +1,157 @@
+name: dockercompose4701145174633385607
+services:
+  challengen5now.api:
+    build:
+      context: C:\Users\USUARIO\Documents\N5\ChallengeN5Now
+      dockerfile: ChallengeN5Now/Dockerfile
+    depends_on:
+      kafka:
+        condition: service_started
+        required: true
+      sql_server:
+        condition: service_started
+        required: true
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ASPNETCORE_HTTPS_PORTS: "8081"
+      ASPNETCORE_URLS: http://+:443;http://+:80
+      CONNECTION_STRING: Server=sql_server;Database=ChallengeN5Now;User=sa;Password=Kinpos2011..;TrustServerCertificate=true;
+      ELASTICSEARCH_SERVER: http://elasticsearch:9200
+      KAFKA_SERVER: kafka:29092
+    image: challengen5nowapi
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 443
+        published: "5001"
+        protocol: tcp
+      - mode: ingress
+        target: 80
+        published: "5000"
+        protocol: tcp
+      - mode: ingress
+        target: 8080
+        protocol: tcp
+      - mode: ingress
+        target: 8081
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: C:\Users\USUARIO\.aspnet\http
+        target: /root/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\USUARIO\.microsoft\usersecrets
+        target: /root/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\USUARIO\AppData\Roaming/Microsoft/UserSecrets
+        target: /home/app/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\USUARIO\AppData\Roaming/ASP.NET/Https
+        target: /home/app/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+  elasticsearch:
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 9200
+        published: "9200"
+        protocol: tcp
+      - mode: ingress
+        target: 9300
+        published: "9300"
+        protocol: tcp
+  init-kafka:
+    command:
+      - |2
+        # blocks until kafka is reachable
+        kafka-topics --bootstrap-server kafka:29092 --list
+        echo -e 'Creating kafka topics'
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic permissionoperation --replication-factor 1 --partitions 1
+        echo -e 'Successfully created the following topics:'
+        kafka-topics --bootstrap-server kafka:29092 --list
+    depends_on:
+      kafka:
+        condition: service_started
+        required: true
+    entrypoint:
+      - /bin/sh
+      - -c
+    image: confluentinc/cp-kafka:6.1.1
+    networks:
+      default: null
+  kafka:
+    depends_on:
+      zookeeper:
+        condition: service_started
+        required: true
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_MIN_INSYNC_REPLICAS: "1"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    expose:
+      - "29092"
+    image: confluentinc/cp-kafka:6.1.1
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 9092
+        published: "9092"
+        protocol: tcp
+  sql_server:
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      SA_PASSWORD: Kinpos2011..
+    image: mcr.microsoft.com/mssql/server:2022-CU12-ubuntu-22.04
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 1433
+        published: "1433"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: dbdata
+        target: /var/lib/mysql/data
+        volume: {}
+  zookeeper:
+    environment:
+      ZOOKEEPER_CLIENT_PORT: "2181"
+    image: confluentinc/cp-zookeeper:6.1.1
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 2181
+        published: "2181"
+        protocol: tcp
+networks:
+  default:
+    name: dockercompose4701145174633385607_default
+volumes:
+  dbdata:
+    name: dockercompose4701145174633385607_dbdata
